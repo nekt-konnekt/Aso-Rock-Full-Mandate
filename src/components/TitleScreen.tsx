@@ -2,11 +2,8 @@ import React from 'react';
 import {
   Play,
   RotateCcw,
-  Volume2,
-  VolumeX,
 } from 'lucide-react';
 import { GameState, PresidentialRecord } from '../types';
-import { isMuted, toggleAudioMute, playGavelKnock } from '../utils/audio';
 
 interface TitleScreenProps {
   gameState: GameState;
@@ -27,16 +24,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   onOpenArchive,
   onOpenGeopoliticalMap,
 }) => {
-  const [muted, setMuted] = React.useState(isMuted());
   const hasActiveGame = gameState.currentMonth > 1 || gameState.pastDecisions.length > 0;
-
-  const handleToggleSound = () => {
-    const next = toggleAudioMute();
-    setMuted(next);
-    if (!next) {
-      playGavelKnock();
-    }
-  };
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-neutral-950 via-neutral-900 to-neutral-950 text-neutral-100 flex flex-col justify-between overflow-hidden">
@@ -60,17 +48,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               Aso Rock: Full Mandate
             </h1>
           </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleToggleSound}
-            className="p-2.5 rounded-xl bg-neutral-900/80 hover:bg-neutral-800 border border-neutral-700 text-neutral-200 transition-colors flex items-center gap-2 text-sm font-medium"
-            title={muted ? 'Unmute Audio' : 'Mute Audio'}
-          >
-            {muted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-            <span className="hidden sm:inline font-mono">{muted ? 'Sound Muted' : 'Sound On'}</span>
-          </button>
         </div>
       </header>
 
