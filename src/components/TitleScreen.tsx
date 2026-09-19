@@ -2,18 +2,11 @@ import React from 'react';
 import {
   Play,
   RotateCcw,
-  ShoppingBag,
-  Award,
-  Compass,
   Volume2,
   VolumeX,
-  Briefcase,
-  Flame,
-  ChevronRight,
-  Sparkles,
 } from 'lucide-react';
 import { GameState, PresidentialRecord } from '../types';
-import { isMuted, toggleAudioMute, playGavelKnock, playTriumphChime } from '../utils/audio';
+import { isMuted, toggleAudioMute, playGavelKnock } from '../utils/audio';
 
 interface TitleScreenProps {
   gameState: GameState;
@@ -120,62 +113,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               <span>Restart</span>
             </button>
           )}
-        </div>
-
-        {/* Tactical Quick Menu Cards */}
-        <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-4xl">
-          {/* Card 1: Geopolitical Radar */}
-          <button
-            onClick={onOpenGeopoliticalMap}
-            className="p-5 rounded-2xl bg-neutral-900/80 hover:bg-neutral-800/90 border border-neutral-700 hover:border-emerald-500/70 text-left transition-all group hover:-translate-y-1 shadow-lg"
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-950 border border-emerald-700/60 flex items-center justify-center text-emerald-400 mb-3 group-hover:scale-105 transition-transform">
-              <Compass className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-base text-neutral-100 group-hover:text-emerald-300 flex items-center justify-between">
-              Geopolitical Radar
-              <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-emerald-400 transition-transform group-hover:translate-x-1" />
-            </h4>
-            <p className="text-sm text-neutral-300 mt-1.5 leading-relaxed">
-              Check stability, corridors, and security alerts across Nigeria’s 6 geopolitical zones.
-            </p>
-          </button>
-
-          {/* Card 2: Hall of Presidents */}
-          <button
-            onClick={onOpenArchive}
-            className="p-5 rounded-2xl bg-neutral-900/80 hover:bg-neutral-800/90 border border-neutral-700 hover:border-neutral-600 text-left transition-all group hover:-translate-y-1 shadow-lg"
-          >
-            <div className="w-10 h-10 rounded-xl bg-neutral-950 border border-neutral-700 flex items-center justify-center text-neutral-300 mb-3 group-hover:scale-105 transition-transform">
-              <Award className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-base text-neutral-100 group-hover:text-white flex items-center justify-between">
-              Hall of Presidents
-              <span className="text-xs px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 font-mono font-bold">
-                {archive.length} Runs
-              </span>
-            </h4>
-            <p className="text-sm text-neutral-300 mt-1.5 leading-relaxed">
-              Review all past administrations, export/import career records, and legacy rankings.
-            </p>
-          </button>
-
-          {/* Card 3: Game Expansions & Scenarios */}
-          <button
-            onClick={onOpenStore}
-            className="p-5 rounded-2xl bg-neutral-900/80 hover:bg-neutral-800/90 border border-amber-800/40 hover:border-amber-500/70 text-left transition-all group hover:-translate-y-1 shadow-lg"
-          >
-            <div className="w-10 h-10 rounded-xl bg-amber-950 border border-amber-700/60 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-105 transition-transform">
-              <ShoppingBag className="w-5 h-5" />
-            </div>
-            <h4 className="font-bold text-base text-amber-300 group-hover:text-amber-200 flex items-center justify-between">
-              Expansions & Perks
-              <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-amber-400 transition-transform group-hover:translate-x-1" />
-            </h4>
-            <p className="text-sm text-neutral-300 mt-1.5 leading-relaxed">
-              Explore 1999 Historic Scenario, Third Term expansion, and Oval Office perks.
-            </p>
-          </button>
         </div>
       </main>
 
