@@ -9,18 +9,11 @@ import {
   Zap,
   Coins,
   AlertTriangle,
-  Volume2,
-  VolumeX,
   ScrollText,
   BookOpen,
   Briefcase,
   Compass,
-  ShoppingBag,
-  Home,
-  Sparkles,
-  Award,
 } from 'lucide-react';
-import { isMuted, toggleAudioMute } from '../utils/audio';
 
 interface PresidentialBriefingProps {
   currentMonth: number;
@@ -38,7 +31,7 @@ interface PresidentialBriefingProps {
   onOpenNewspaper: () => void;
   onOpenArchive: () => void;
   onOpenGeopoliticalMap: () => void;
-  onReturnToTitle: () => void;
+  onReturnToTitle?: () => void;
   unreadHeadlinesCount?: number;
 }
 
@@ -69,13 +62,6 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
   onReturnToTitle,
   unreadHeadlinesCount = 0,
 }) => {
-  const [muted, setMuted] = React.useState(isMuted());
-
-  const handleToggleMute = () => {
-    const next = toggleAudioMute();
-    setMuted(next);
-  };
-
   const treasuryFormatted =
     treasuryBillionNaira >= 1000
       ? `₦${(treasuryBillionNaira / 1000).toFixed(2)} Trillion`
@@ -89,15 +75,6 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
       {/* Top Crest Bar */}
       <div className="bg-neutral-950 px-4 sm:px-6 py-2.5 border-b border-neutral-800 flex flex-wrap items-center justify-between gap-3 text-sm">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onReturnToTitle}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-700 transition-colors font-semibold text-xs sm:text-sm active:scale-95"
-            title="Return to Main Title Screen"
-          >
-            <Home className="w-4 h-4 text-emerald-400" />
-            <span>Title Menu</span>
-          </button>
-
           <div className="w-7 h-7 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center font-bold text-emerald-400 text-sm shadow-inner">
             🇳🇬
           </div>
@@ -117,25 +94,11 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
             </span>
           )}
 
-          {vipUnlocked && (
-            <span className="text-xs px-2.5 py-1 rounded-md bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold flex items-center gap-1.5 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> VIP Pass Active
-            </span>
-          )}
-
           <div className="text-right hidden md:block">
             <span className="text-neutral-200 font-bold text-sm">{presidentName}</span>
             <span className="text-neutral-500 mx-2">•</span>
             <span className="text-emerald-400 font-bold text-sm">{partyName}</span>
           </div>
-
-          <button
-            onClick={handleToggleMute}
-            aria-label={muted ? 'Unmute procedural audio' : 'Mute audio'}
-            className="p-2 rounded-lg bg-neutral-900 border border-neutral-700 hover:border-neutral-600 text-neutral-300 hover:text-white transition-colors"
-          >
-            {muted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-          </button>
         </div>
       </div>
 
