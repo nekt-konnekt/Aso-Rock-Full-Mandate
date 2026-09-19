@@ -8,10 +8,17 @@ import {
   NewspaperIssue,
   GameEndingType,
   PresidentialRecord,
+  PresidentArchetypeId,
+  GeopoliticalZoneId,
+  MonetizationItem,
+  MonthEndFinancialReport,
 } from './types';
 import { INITIAL_CHARACTERS } from './data/characters';
 import { INITIAL_PROMISES } from './data/promises';
 import { CRISES_DATABASE } from './data/crises';
+import { PRESIDENT_ARCHETYPES } from './data/archetypes';
+import { INITIAL_GEOPOLITICAL_ZONES } from './data/geopoliticalZones';
+import { STORE_ITEMS } from './data/monetization';
 import { PresidentialBriefing } from './components/PresidentialBriefing';
 import { CrisisCard } from './components/CrisisCard';
 import { ExecutiveActionsModal } from './components/ExecutiveActionsModal';
@@ -20,6 +27,11 @@ import { PromiseLedgerModal } from './components/PromiseLedgerModal';
 import { NewspaperModal } from './components/NewspaperModal';
 import { PresidentialArchiveModal } from './components/PresidentialArchiveModal';
 import { ElectionEndingScreen } from './components/ElectionEndingScreen';
+import { TitleScreen } from './components/TitleScreen';
+import { CampaignSetupModal } from './components/CampaignSetupModal';
+import { VIPStoreModal } from './components/VIPStoreModal';
+import { GeopoliticalMapModal } from './components/GeopoliticalMapModal';
+import { MonthEndReportModal } from './components/MonthEndReportModal';
 import {
   getPresidentialArchive,
   savePresidentialRecord,
@@ -30,6 +42,7 @@ import {
   playAlertTone,
   playGavelKnock,
   playPhoneTone,
+  playTriumphChime,
 } from './utils/audio';
 import {
   AlertCircle,
@@ -148,15 +161,32 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState>(() => {
     const initialPriorities = getMonthPriorities(1, [], []);
     return {
+      gameStage: 'title_screen',
+      archetype: 'technocrat',
+      difficulty: 'standard',
+      difficultyMode: 'standard',
       presidentName: 'President Oluwaseun Adewale',
       partyName: 'Federal Unity Party (FUP)',
       currentMonth: 1,
       maxMonths: 12,
-      politicalCapital: 50,
-      treasuryBillionNaira: 4850,
+      politicalCapital: 60,
+      treasuryBillionNaira: 5600,
       factions: JSON.parse(JSON.stringify(INITIAL_FACTIONS)),
       characters: JSON.parse(JSON.stringify(INITIAL_CHARACTERS)),
       promises: JSON.parse(JSON.stringify(INITIAL_PROMISES)),
+      geopoliticalZones: JSON.parse(JSON.stringify(INITIAL_GEOPOLITICAL_ZONES)),
+      monetizationInventory: ['pass_vip_executive'],
+      unlockedStoreItems: ['pass_vip_executive'],
+      vipUnlocked: true,
+      intelligenceRadarActive: true,
+      undoTokens: 3,
+      economicIndicators: {
+        crudeOilPriceUSD: 78.5,
+        inflationPercent: 28.4,
+        nairaToUSD: 1480,
+      },
+      lastMonthFinancials: null,
+      monthEndReport: null,
       activeCrisis: initialPriorities[0] || null,
       priorityCrises: initialPriorities,
       delayedEvents: [],
@@ -174,11 +204,9 @@ export default function App() {
   const [isPromisesModalOpen, setIsPromisesModalOpen] = useState(false);
   const [isNewspaperModalOpen, setIsNewspaperModalOpen] = useState(false);
   const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
-  const [isNewGameDialogOpen, setIsNewGameDialogOpen] = useState(false);
-
-  // New Game customizer inputs
-  const [customName, setCustomName] = useState('President Oluwaseun Adewale');
-  const [customParty, setCustomParty] = useState(PARTIES[0]);
+  const [isCampaignSetupOpen, setIsCampaignSetupOpen] = useState(false);
+  const [isVIPStoreOpen, setIsVIPStoreOpen] = useState(false);
+  const [isGeopoliticalMapOpen, setIsGeopoliticalMapOpen] = useState(false);
 
   // Last decision feedback toast
   const [decisionFeedback, setDecisionFeedback] = useState<{
@@ -332,7 +360,7 @@ export default function App() {
       return;
     }
 
-    // Advance to next month
+    // Advance to next month with State of the Nation FAAC financial report
     const nextMonth = gameState.currentMonth + 1;
     // Monthly political capital regeneration: +6 base, + bonuses for healthy factions
     const capitalRegen = 6 + (nextFactions.party.value > 60 ? 2 : 0) + (nextFactions.assembly.value > 60 ? 2 : 0);
@@ -340,11 +368,29 @@ export default function App() {
 
     const nextPriorities = getMonthPriorities(nextMonth, nextDelayed, nextPastDecisions);
 
+    // Generate monthly macro financial report
+    const grossOil = 1150 + Math.floor(Math.random() * 180);
+    const faacDeduction = 640 + Math.floor(Math.random() * 60);
+    const debtService = 260;
+    const netTreasuryMonthly = grossOil - faacDeduction - debtService;
+
+    const monthlyReport: MonthEndFinancialReport = {
+      month: gameState.currentMonth,
+      grossOilRevenueBillion: grossOil,
+      faacStateDeductionBillion: faacDeduction,
+      debtServicingBillion: debtService,
+      netFederationTreasuryDelta: netTreasuryMonthly,
+      crudeOilPriceUSD: 78.5,
+      inflationRate: 28.2,
+      nairaExchangeRate: 1490,
+      headline: nextHeadlines[0]?.headline || `Presidential Order Gazetted at Aso Rock Villa`,
+    };
+
     setGameState((prev) => ({
       ...prev,
       currentMonth: nextMonth,
       politicalCapital: refreshedCapital,
-      treasuryBillionNaira: nextTreasury,
+      treasuryBillionNaira: nextTreasury + netTreasuryMonthly,
       factions: nextFactions,
       characters: nextCharacters,
       promises: nextPromises,
@@ -353,7 +399,102 @@ export default function App() {
       pastDecisions: nextPastDecisions,
       priorityCrises: nextPriorities,
       activeCrisis: nextPriorities[0] || null,
+      monthEndReport: monthlyReport,
     }));
+  };
+
+  // Purchase In-Game Item (VIP Pass, Scenarios, Boosters)
+  const handlePurchaseItem = (item: MonetizationItem) => {
+    setGameState((prev) => {
+      const nextInventory = prev.unlockedStoreItems.includes(item.id)
+        ? prev.unlockedStoreItems
+        : [...prev.unlockedStoreItems, item.id];
+
+      let bonusCapital = 0;
+      let bonusTreasury = 0;
+      let bonusUndo = 0;
+      let vipNow = prev.vipUnlocked;
+      let radarNow = prev.intelligenceRadarActive;
+
+      if (item.id === 'pass_vip_executive') {
+        vipNow = true;
+        radarNow = true;
+        bonusUndo += 3;
+      } else if (item.id === 'booster_imf_facility') {
+        bonusTreasury += 1500;
+      } else if (item.id === 'booster_godfather_capital') {
+        bonusCapital += 35;
+      } else if (item.id === 'booster_pardon_tokens_pack') {
+        bonusUndo += 3;
+      }
+
+      return {
+        ...prev,
+        unlockedStoreItems: nextInventory,
+        monetizationInventory: nextInventory,
+        vipUnlocked: vipNow,
+        intelligenceRadarActive: radarNow,
+        politicalCapital: Math.min(100, prev.politicalCapital + bonusCapital),
+        treasuryBillionNaira: prev.treasuryBillionNaira + bonusTreasury,
+        undoTokens: prev.undoTokens + bonusUndo,
+      };
+    });
+  };
+
+  // Start a fresh presidential campaign with archetype bonuses
+  const handleStartNewCampaign = (params: {
+    name: string;
+    party: string;
+    archetype: PresidentArchetypeId;
+    difficulty: 'standard' | 'iron_statesman';
+  }) => {
+    const archetypeData =
+      PRESIDENT_ARCHETYPES.find((a) => a.id === params.archetype) || PRESIDENT_ARCHETYPES[0];
+    const resetFactions = JSON.parse(JSON.stringify(INITIAL_FACTIONS));
+
+    // Apply archetype faction affinities
+    if (archetypeData.factionAffinities) {
+      Object.entries(archetypeData.factionAffinities).forEach(([k, v]) => {
+        const fId = k as FactionId;
+        if (resetFactions[fId]) {
+          resetFactions[fId].value = Math.max(15, Math.min(95, resetFactions[fId].value + (v || 0)));
+        }
+      });
+    }
+
+    const resetCharacters = JSON.parse(JSON.stringify(INITIAL_CHARACTERS));
+    const resetPromises = JSON.parse(JSON.stringify(INITIAL_PROMISES));
+    const initialPriorities = getMonthPriorities(1, [], []);
+
+    setGameState((prev) => ({
+      ...prev,
+      gameStage: 'playing',
+      archetype: params.archetype,
+      difficulty: params.difficulty,
+      difficultyMode: params.difficulty,
+      presidentName: params.name,
+      partyName: params.party,
+      currentMonth: 1,
+      maxMonths: 12,
+      politicalCapital: 50 + archetypeData.startingCapitalBonus,
+      treasuryBillionNaira: 4850 + archetypeData.startingTreasuryBonusBillion,
+      factions: resetFactions,
+      characters: resetCharacters,
+      promises: resetPromises,
+      geopoliticalZones: JSON.parse(JSON.stringify(INITIAL_GEOPOLITICAL_ZONES)),
+      activeCrisis: initialPriorities[0] || null,
+      priorityCrises: initialPriorities,
+      delayedEvents: [],
+      recentHeadlines: [],
+      pastDecisions: [],
+      isGameOver: false,
+      ending: null,
+      endingNarrative: null,
+      monthEndReport: null,
+    }));
+
+    setDecisionFeedback(null);
+    setIsCampaignSetupOpen(false);
   };
 
   // Trigger Election / Ending Screen
@@ -490,39 +631,51 @@ export default function App() {
     });
   };
 
-  // Restart / New Presidency
-  const handleStartNewPresidency = (pName?: string, pParty?: string) => {
-    const finalName = pName || customName || 'President Oluwaseun Adewale';
-    const finalParty = pParty || customParty || PARTIES[0];
-
-    const resetFactions = JSON.parse(JSON.stringify(INITIAL_FACTIONS));
-    const resetCharacters = JSON.parse(JSON.stringify(INITIAL_CHARACTERS));
-    const resetPromises = JSON.parse(JSON.stringify(INITIAL_PROMISES));
-    const initialPriorities = getMonthPriorities(1, [], []);
-
-    setGameState({
-      presidentName: finalName,
-      partyName: finalParty,
-      currentMonth: 1,
-      maxMonths: 12,
-      politicalCapital: 50,
-      treasuryBillionNaira: 4850,
-      factions: resetFactions,
-      characters: resetCharacters,
-      promises: resetPromises,
-      activeCrisis: initialPriorities[0] || null,
-      priorityCrises: initialPriorities,
-      delayedEvents: [],
-      recentHeadlines: [],
-      pastDecisions: [],
-      isGameOver: false,
-      ending: null,
-      endingNarrative: null,
-    });
-
-    setDecisionFeedback(null);
-    setIsNewGameDialogOpen(false);
-  };
+  // If on Title Screen, render full Game Title Screen experience
+  if (gameState.gameStage === 'title_screen') {
+    return (
+      <>
+        <TitleScreen
+          gameState={gameState}
+          archive={archive}
+          onStartNewCampaign={() => setIsCampaignSetupOpen(true)}
+          onResumeMandate={() => setGameState((p) => ({ ...p, gameStage: 'playing' }))}
+          onOpenStore={() => setIsVIPStoreOpen(true)}
+          onOpenArchive={() => setIsArchiveModalOpen(true)}
+          onOpenGeopoliticalMap={() => setIsGeopoliticalMapOpen(true)}
+        />
+        <CampaignSetupModal
+          isOpen={isCampaignSetupOpen}
+          onClose={() => setIsCampaignSetupOpen(false)}
+          onStartGame={handleStartNewCampaign}
+          initialName={gameState.presidentName}
+          initialParty={gameState.partyName}
+        />
+        <VIPStoreModal
+          isOpen={isVIPStoreOpen}
+          onClose={() => setIsVIPStoreOpen(false)}
+          unlockedItemIds={gameState.unlockedStoreItems}
+          onPurchaseItem={handlePurchaseItem}
+        />
+        <PresidentialArchiveModal
+          isOpen={isArchiveModalOpen}
+          onClose={() => setIsArchiveModalOpen(false)}
+          archive={archive}
+          onStartNewPresidency={() => {
+            setIsArchiveModalOpen(false);
+            setIsCampaignSetupOpen(true);
+          }}
+          onUpdateArchive={setArchive}
+        />
+        <GeopoliticalMapModal
+          isOpen={isGeopoliticalMapOpen}
+          onClose={() => setIsGeopoliticalMapOpen(false)}
+          zones={gameState.geopoliticalZones}
+          politicalCapital={gameState.politicalCapital}
+        />
+      </>
+    );
+  }
 
   // If Game Over, render Grand Election & Mandate screen
   if (gameState.isGameOver && gameState.ending) {
@@ -552,7 +705,7 @@ export default function App() {
         record={latestRecord}
         factions={gameState.factions}
         promises={gameState.promises}
-        onPlayAgain={() => setIsNewGameDialogOpen(true)}
+        onPlayAgain={() => setIsCampaignSetupOpen(true)}
         onViewArchive={() => setIsArchiveModalOpen(true)}
       />
     );
@@ -574,11 +727,16 @@ export default function App() {
         factions={gameState.factions}
         presidentName={gameState.presidentName}
         partyName={gameState.partyName}
+        archetypeName={PRESIDENT_ARCHETYPES.find((a) => a.id === gameState.archetype)?.name}
+        vipUnlocked={gameState.vipUnlocked}
         onOpenExecutiveActions={() => setIsExecutiveModalOpen(true)}
         onOpenCabinetDossier={() => setIsCabinetModalOpen(true)}
         onOpenPromises={() => setIsPromisesModalOpen(true)}
         onOpenNewspaper={() => setIsNewspaperModalOpen(true)}
         onOpenArchive={() => setIsArchiveModalOpen(true)}
+        onOpenGeopoliticalMap={() => setIsGeopoliticalMapOpen(true)}
+        onOpenStore={() => setIsVIPStoreOpen(true)}
+        onReturnToTitle={() => setGameState((p) => ({ ...p, gameStage: 'title_screen' }))}
         unreadHeadlinesCount={gameState.recentHeadlines.length}
       />
 
@@ -678,6 +836,8 @@ export default function App() {
             reporter={currentReporter}
             politicalCapital={gameState.politicalCapital}
             onSelectChoice={handleSelectChoice}
+            timerEnabled={gameState.difficulty === 'iron_statesman'}
+            intelligenceRadarActive={gameState.intelligenceRadarActive}
           />
         ) : (
           <div className="text-center py-16 bg-neutral-900/50 rounded-2xl border border-neutral-800">
@@ -697,19 +857,19 @@ export default function App() {
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
             <span className="font-semibold text-neutral-300">Aso Rock: Full Mandate</span>
             <span className="text-neutral-600">•</span>
-            <span>A Nigerian Political Survival Strategy Prototype</span>
+            <span>A Nigerian Political Survival Strategy Game</span>
           </div>
 
           <div className="flex items-center gap-4 text-[11px]">
-            <span>Systemic Factions (Not Health Bars)</span>
+            <span>Systemic Factions</span>
             <span className="text-neutral-600">•</span>
-            <span>Persistent Consequence Engine</span>
+            <span>6 Geopolitical Zones</span>
             <span className="text-neutral-600">•</span>
             <button
-              onClick={() => setIsNewGameDialogOpen(true)}
+              onClick={() => setIsCampaignSetupOpen(true)}
               className="text-emerald-400 hover:text-emerald-300 font-semibold"
             >
-              Restart Presidency
+              Inaugurate New Mandate
             </button>
           </div>
         </div>
@@ -747,63 +907,44 @@ export default function App() {
         isOpen={isArchiveModalOpen}
         onClose={() => setIsArchiveModalOpen(false)}
         archive={archive}
-        onStartNewPresidency={() => setIsNewGameDialogOpen(true)}
+        onStartNewPresidency={() => {
+          setIsArchiveModalOpen(false);
+          setIsCampaignSetupOpen(true);
+        }}
+        onUpdateArchive={setArchive}
       />
 
-      {/* New Presidency Dialog */}
-      {isNewGameDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-2 border-b border-neutral-800 pb-3">
-              <span className="text-2xl">🇳🇬</span>
-              <div>
-                <h3 className="font-cinzel text-lg font-bold text-neutral-100">Swear In New Presidency</h3>
-                <p className="text-xs text-neutral-400">Configure your candidate credentials</p>
-              </div>
-            </div>
+      <VIPStoreModal
+        isOpen={isVIPStoreOpen}
+        onClose={() => setIsVIPStoreOpen(false)}
+        unlockedItemIds={gameState.unlockedStoreItems}
+        onPurchaseItem={handlePurchaseItem}
+      />
 
-            <div>
-              <label className="text-xs font-semibold text-neutral-300 block mb-1">President's Name:</label>
-              <input
-                type="text"
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-emerald-500"
-                placeholder="e.g. President Babatunde Cole"
-              />
-            </div>
+      <GeopoliticalMapModal
+        isOpen={isGeopoliticalMapOpen}
+        onClose={() => setIsGeopoliticalMapOpen(false)}
+        zones={gameState.geopoliticalZones}
+        politicalCapital={gameState.politicalCapital}
+      />
 
-            <div>
-              <label className="text-xs font-semibold text-neutral-300 block mb-1">Ruling Political Party:</label>
-              <select
-                value={customParty}
-                onChange={(e) => setCustomParty(e.target.value)}
-                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-emerald-500"
-              >
-                {PARTIES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <CampaignSetupModal
+        isOpen={isCampaignSetupOpen}
+        onClose={() => setIsCampaignSetupOpen(false)}
+        onStartGame={handleStartNewCampaign}
+        initialName={gameState.presidentName}
+        initialParty={gameState.partyName}
+      />
 
-            <div className="pt-2 flex items-center justify-end gap-2">
-              <button
-                onClick={() => setIsNewGameDialogOpen(false)}
-                className="px-3 py-1.5 rounded-lg bg-neutral-800 text-neutral-300 text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleStartNewPresidency(customName, customParty)}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-bold text-xs shadow-md"
-              >
-                Take Presidential Oath
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Month End State of the Nation Report */}
+      {gameState.monthEndReport && (
+        <MonthEndReportModal
+          isOpen={true}
+          onProceedToNextMonth={() => setGameState((p) => ({ ...p, monthEndReport: null }))}
+          report={gameState.monthEndReport}
+          factions={gameState.factions}
+          nextMonthNumber={gameState.currentMonth}
+        />
       )}
     </div>
   );

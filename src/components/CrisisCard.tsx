@@ -20,6 +20,7 @@ interface CrisisCardProps {
   politicalCapital: number;
   onSelectChoice: (choice: CrisisChoice) => void;
   timerEnabled?: boolean;
+  intelligenceRadarActive?: boolean;
 }
 
 export const CrisisCard: React.FC<CrisisCardProps> = ({
@@ -28,6 +29,7 @@ export const CrisisCard: React.FC<CrisisCardProps> = ({
   politicalCapital,
   onSelectChoice,
   timerEnabled = false,
+  intelligenceRadarActive = false,
 }) => {
   const [secondsLeft, setSecondsLeft] = React.useState(30);
   const [isTimerPaused, setIsTimerPaused] = React.useState(!timerEnabled);
@@ -246,9 +248,25 @@ export const CrisisCard: React.FC<CrisisCardProps> = ({
                             : `-₦${Math.abs(choice.impact.treasuryBillion)}B`}
                         </span>
                       )}
+                      {/* VIP Intelligence Radar Reveal */}
+                      {intelligenceRadarActive && choice.impact.characterLoyalty && (
+                        <div className="w-full mt-1.5 pt-1.5 border-t border-amber-900/40 text-[10px] text-amber-300/90 font-mono flex flex-wrap gap-2">
+                          <span className="font-bold text-amber-400">⚡ VIP Intel:</span>
+                          {Object.entries(choice.impact.characterLoyalty).map(([cId, delta]) => (
+                            <span key={cId} className={delta >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                              {cId.replace('_', ' ')}: {delta >= 0 ? `+${delta}` : delta}
+                            </span>
+                          ))}
+                          {choice.impact.delayedTrigger && (
+                            <span className="text-amber-400 font-bold">
+                              ↳ Seeds crisis in {choice.impact.delayedTrigger.inMonths}mo: "{choice.impact.delayedTrigger.reason}"
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <span className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-semibold text-xs">
+                    <span className="text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 font-semibold text-xs shrink-0">
                       Sign Order <ArrowRight className="w-3.5 h-3.5" />
                     </span>
                   </div>

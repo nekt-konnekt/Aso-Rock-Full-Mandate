@@ -54,6 +54,58 @@ export function savePresidentialRecord(record: PresidentialRecord): void {
   }
 }
 
+export function deletePresidentialRecord(id: string): PresidentialRecord[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const current = getPresidentialArchive();
+    const updated = current.filter((r) => r.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    return updated;
+  } catch {
+    return getPresidentialArchive();
+  }
+}
+
+export function exportPresidentialArchiveJSON(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const records = getPresidentialArchive();
+    const blob = new Blob([JSON.stringify(records, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aso_rock_presidents_archive_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Failed to export presidential archive', err);
+  }
+}
+
+export function importPresidentialArchiveJSON(jsonString: string): {
+  success: boolean;
+  records: PresidentialRecord[];
+  message: string;
+} {
+  try {
+    const parsed = JSON.parse(jsonString);
+    if (!Array.isArray(parsed)) {
+      return { success: false, records: getPresidentialArchive(), message: 'Invalid JSON format: Expected an array of presidential records.' };
+    }
+    const current = getPresidentialArchive();
+    const currentIds = new Set(current.map((r) => r.id));
+    const merged = [...parsed.filter((r) => !currentIds.has(r.id)), ...current];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    return { success: true, records: merged, message: `Successfully imported ${parsed.length} presidential record(s).` };
+  } catch (err) {
+    return { success: false, records: getPresidentialArchive(), message: `Import error: ${err instanceof Error ? err.message : 'Unknown error'}` };
+  }
+}
+
 export function generateLegacyTitle(
   ending: string,
   approval: number,

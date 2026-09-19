@@ -98,12 +98,72 @@ export interface DelayedEvent {
   reason: string;
 }
 
-export type GameEndingType = 'second_term' | 'successor' | 'opposition' | 'collapse';
+export type GameEndingType = 'second_term' | 'successor' | 'opposition' | 'collapse' | 'impeached' | 'bankruptcy' | 'military_intervention';
+
+export type PresidentArchetypeId = 'general' | 'technocrat' | 'populist' | 'oil_magnate';
+
+export interface PresidentArchetype {
+  id: PresidentArchetypeId;
+  name: string;
+  tagline: string;
+  description: string;
+  startingCapitalBonus: number;
+  startingTreasuryBonusBillion: number;
+  factionAffinities: Partial<Record<FactionId, number>>;
+  specialPerk: string;
+  quote: string;
+}
+
+export type GeopoliticalZoneId =
+  | 'north_west'
+  | 'north_east'
+  | 'north_central'
+  | 'south_west'
+  | 'south_east'
+  | 'south_south';
+
+export interface GeopoliticalZone {
+  id: GeopoliticalZoneId;
+  name: string;
+  shortName: string;
+  primaryEconomicEngine: string;
+  primaryVulnerability: string;
+  stability: number; // 0 - 100
+  governorSupport: number; // 0 - 100
+  activeAlert?: string;
+}
+
+export type StoreItemCategory = 'expansion' | 'privilege' | 'booster';
+
+export interface MonetizationItem {
+  id: string;
+  name: string;
+  category: StoreItemCategory;
+  priceNaira: number;
+  priceUSD: number;
+  badge: string;
+  description: string;
+  perks: string[];
+  isUnlocked?: boolean;
+}
+
+export interface MonthEndFinancialReport {
+  month: number;
+  crudeOilPriceUSD: number;
+  grossOilRevenueBillion: number;
+  faacStateDeductionBillion: number;
+  debtServicingBillion: number;
+  netFederationTreasuryDelta: number;
+  inflationRate: number;
+  nairaExchangeRate: number;
+  headline: string;
+}
 
 export interface PresidentialRecord {
   id: string;
   presidentName: string;
   partyName: string;
+  archetypeId?: PresidentArchetypeId;
   completedAt: string;
   totalMonths: number;
   ending: GameEndingType;
@@ -120,9 +180,15 @@ export interface PresidentialRecord {
   keyEventsSummary: string[];
 }
 
+export type GameStage = 'title_menu' | 'title_screen' | 'campaign_setup' | 'playing' | 'month_transition';
+
 export interface GameState {
+  gameStage: GameStage;
   presidentName: string;
   partyName: string;
+  archetype: PresidentArchetypeId;
+  difficultyMode: 'standard' | 'iron_statesman';
+  difficulty?: 'standard' | 'iron_statesman';
   currentMonth: number;
   maxMonths: number;
   politicalCapital: number;
@@ -130,6 +196,7 @@ export interface GameState {
   factions: Record<FactionId, FactionState>;
   characters: Record<string, Character>;
   promises: CampaignPromise[];
+  geopoliticalZones: Record<GeopoliticalZoneId, GeopoliticalZone>;
   activeCrisis: Crisis | null;
   priorityCrises: Crisis[]; // The 2 or 3 crises competing for attention this month
   delayedEvents: DelayedEvent[];
@@ -140,6 +207,18 @@ export interface GameState {
     choiceLabel: string;
     impactSummary: string;
   }[];
+  unlockedStoreItems: string[]; // Store item IDs
+  monetizationInventory?: string[];
+  vipUnlocked: boolean;
+  intelligenceRadarActive: boolean; // VIP perk: reveals true character loyalties & detailed outcomes
+  undoTokens: number;
+  economicIndicators: {
+    crudeOilPriceUSD: number;
+    inflationPercent: number;
+    nairaToUSD: number;
+  };
+  lastMonthFinancials: MonthEndFinancialReport | null;
+  monthEndReport?: MonthEndFinancialReport | null;
   isGameOver: boolean;
   ending: GameEndingType | null;
   endingNarrative: string | null;

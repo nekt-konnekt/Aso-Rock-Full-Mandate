@@ -1,6 +1,6 @@
 {
   "name": "Aso Rock: Full Mandate",
-  "description": "A Nigerian political survival strategy game prototype balancing factions, political capital, character loyalty, and persistent consequences.",
+  "description": "A Nigerian political survival strategy game featuring presidential archetypes, geopolitical statecraft, VIP monetization, and persistent consequence engine.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

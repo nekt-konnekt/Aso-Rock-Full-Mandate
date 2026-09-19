@@ -14,6 +14,10 @@ import {
   ScrollText,
   BookOpen,
   Briefcase,
+  Compass,
+  ShoppingBag,
+  Home,
+  Sparkles,
 } from 'lucide-react';
 import { isMuted, toggleAudioMute } from '../utils/audio';
 
@@ -25,11 +29,16 @@ interface PresidentialBriefingProps {
   factions: Record<FactionId, FactionState>;
   presidentName: string;
   partyName: string;
+  archetypeName?: string;
+  vipUnlocked?: boolean;
   onOpenExecutiveActions: () => void;
   onOpenCabinetDossier: () => void;
   onOpenPromises: () => void;
   onOpenNewspaper: () => void;
   onOpenArchive: () => void;
+  onOpenGeopoliticalMap: () => void;
+  onOpenStore: () => void;
+  onReturnToTitle: () => void;
   unreadHeadlinesCount?: number;
 }
 
@@ -49,11 +58,16 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
   factions,
   presidentName,
   partyName,
+  archetypeName,
+  vipUnlocked = false,
   onOpenExecutiveActions,
   onOpenCabinetDossier,
   onOpenPromises,
   onOpenNewspaper,
   onOpenArchive,
+  onOpenGeopoliticalMap,
+  onOpenStore,
+  onReturnToTitle,
   unreadHeadlinesCount = 0,
 }) => {
   const [muted, setMuted] = React.useState(isMuted());
@@ -76,6 +90,15 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
       {/* Top Crest Bar */}
       <div className="bg-neutral-950 px-4 py-2 border-b border-neutral-800/80 flex flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-3">
+          <button
+            onClick={onReturnToTitle}
+            className="flex items-center gap-1.5 px-2 py-1 rounded bg-neutral-900 hover:bg-neutral-800 text-neutral-400 hover:text-neutral-200 border border-neutral-800 transition-colors"
+            title="Return to Main Title Screen"
+          >
+            <Home className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="font-semibold text-[11px]">Menu</span>
+          </button>
+
           <div className="w-6 h-6 rounded-full bg-emerald-950 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 text-[10px] tracking-wider shadow-inner">
             🇳🇬
           </div>
@@ -88,7 +111,19 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {archetypeName && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/70 border border-emerald-700/50 text-emerald-300 font-mono hidden md:inline">
+              {archetypeName}
+            </span>
+          )}
+
+          {vipUnlocked && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold flex items-center gap-1">
+              <Sparkles className="w-3 h-3 text-amber-400" /> VIP Pass
+            </span>
+          )}
+
           <div className="text-right hidden md:block">
             <span className="text-neutral-400 font-medium">{presidentName}</span>
             <span className="text-neutral-600 mx-1.5">•</span>
@@ -269,11 +304,27 @@ export const PresidentialBriefing: React.FC<PresidentialBriefingProps> = ({
             </button>
 
             <button
+              onClick={onOpenGeopoliticalMap}
+              className="px-3 py-1.5 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-200 border border-neutral-700/70 hover:border-neutral-600 flex items-center gap-1.5 transition-colors font-medium"
+            >
+              <Compass className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Geopolitical Radar</span>
+            </button>
+
+            <button
               onClick={onOpenArchive}
               className="px-3 py-1.5 rounded-md bg-neutral-800/80 hover:bg-neutral-800 text-neutral-200 border border-neutral-700/70 hover:border-neutral-600 flex items-center gap-1.5 transition-colors font-medium"
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Presidential Archive</span>
+              <span>Archive</span>
+            </button>
+
+            <button
+              onClick={onOpenStore}
+              className="px-3 py-1.5 rounded-md bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-700/50 flex items-center gap-1.5 transition-colors font-semibold"
+            >
+              <ShoppingBag className="w-3.5 h-3.5 text-amber-400" />
+              <span>VIP Store</span>
             </button>
           </div>
 
