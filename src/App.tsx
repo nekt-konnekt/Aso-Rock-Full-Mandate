@@ -1,0 +1,810 @@
+import React, { useState, useEffect } from 'react';
+import {
+  GameState,
+  FactionId,
+  FactionState,
+  Crisis,
+  CrisisChoice,
+  NewspaperIssue,
+  GameEndingType,
+  PresidentialRecord,
+} from './types';
+import { INITIAL_CHARACTERS } from './data/characters';
+import { INITIAL_PROMISES } from './data/promises';
+import { CRISES_DATABASE } from './data/crises';
+import { PresidentialBriefing } from './components/PresidentialBriefing';
+import { CrisisCard } from './components/CrisisCard';
+import { ExecutiveActionsModal } from './components/ExecutiveActionsModal';
+import { CabinetDossier } from './components/CabinetDossier';
+import { PromiseLedgerModal } from './components/PromiseLedgerModal';
+import { NewspaperModal } from './components/NewspaperModal';
+import { PresidentialArchiveModal } from './components/PresidentialArchiveModal';
+import { ElectionEndingScreen } from './components/ElectionEndingScreen';
+import {
+  getPresidentialArchive,
+  savePresidentialRecord,
+  generateLegacyTitle,
+} from './utils/archive';
+import {
+  playDecisionStamp,
+  playAlertTone,
+  playGavelKnock,
+  playPhoneTone,
+} from './utils/audio';
+import {
+  AlertCircle,
+  ArrowRight,
+  Flame,
+  CheckCircle,
+  FileText,
+  Calendar,
+  Zap,
+  TrendingUp,
+  TrendingDown,
+  Sparkles,
+  ChevronRight,
+  Users,
+} from 'lucide-react';
+
+const INITIAL_FACTIONS: Record<FactionId, FactionState> = {
+  public: {
+    id: 'public',
+    name: 'Public',
+    value: 62,
+    trend: 'steady',
+    description: 'Measures broad public sentiment, living costs, jobs, and social peace.',
+    isHostile: false,
+    hostileConsequence: 'Mass transport strikes and nationwide cost-of-living demonstrations.',
+  },
+  party: {
+    id: 'party',
+    name: 'Party',
+    value: 58,
+    trend: 'steady',
+    description: 'Your political machine, party delegates, state caucuses, and kingmakers.',
+    isHostile: false,
+    hostileConsequence: 'Caucus rebellions, mass floor-crossings, and defection threats.',
+  },
+  governors: {
+    id: 'governors',
+    name: 'Governors',
+    value: 71,
+    trend: 'steady',
+    description: 'The 36 state chief executives commanding grassroots and FAAC revenue shares.',
+    isHostile: false,
+    hostileConsequence: 'Governors boycott National Economic Council and withhold revenue.',
+  },
+  assembly: {
+    id: 'assembly',
+    name: 'Assembly',
+    value: 52,
+    trend: 'steady',
+    description: 'The bicameral National Assembly (Senate & House) passing budgets and screening appointees.',
+    isHostile: false,
+    hostileConsequence: 'Bills gridlocked in committee; threats of investigative summons.',
+  },
+  media: {
+    id: 'media',
+    name: 'Media',
+    value: 46,
+    trend: 'steady',
+    description: 'National press corps, broadcast stations, digital publishers, and social channels.',
+    isHostile: false,
+    hostileConsequence: 'Tabloid exposés, leaked State House memos, and hostile investigative headlines.',
+  },
+};
+
+const PARTIES = [
+  'Federal Unity Party (FUP)',
+  'People’s Reform Party (PRP)',
+  'National Progressive Alliance (NPA)',
+  'Democratic Peoples Congress (DPC)',
+];
+
+function getMonthPriorities(
+  month: number,
+  delayedList: GameState['delayedEvents'] = [],
+  pastDecisions: GameState['pastDecisions'] = []
+): Crisis[] {
+  // 1. Check if any delayed spinoff events mature this month
+  const maturedEvents = delayedList.filter((d) => d.triggerMonth === month);
+  const maturedCrises: Crisis[] = [];
+
+  maturedEvents.forEach((m) => {
+    const match = CRISES_DATABASE.find((c) => c.id === m.crisisId);
+    if (match) {
+      maturedCrises.push(match);
+    }
+  });
+
+  // 2. Select 2 or 3 standard crises matching this month or pool
+  const pool = CRISES_DATABASE.filter(
+    (c) =>
+      !c.isDelayedSpinoff &&
+      !pastDecisions.some((pd) => pd.crisisTitle === c.title)
+  );
+
+  // Pick top candidates
+  const primaryCandidate = pool[(month - 1) % pool.length] || pool[0];
+  const secondaryCandidate = pool[(month + 2) % pool.length] || pool[1];
+  const tertiaryCandidate = pool[(month + 5) % pool.length] || pool[2];
+
+  const candidates: Crisis[] = [...maturedCrises];
+  if (primaryCandidate && !candidates.some((c) => c.id === primaryCandidate.id)) {
+    candidates.push(primaryCandidate);
+  }
+  if (secondaryCandidate && !candidates.some((c) => c.id === secondaryCandidate.id)) {
+    candidates.push(secondaryCandidate);
+  }
+  if (tertiaryCandidate && candidates.length < 3 && !candidates.some((c) => c.id === tertiaryCandidate.id)) {
+    candidates.push(tertiaryCandidate);
+  }
+
+  return candidates.slice(0, 3);
+}
+
+export default function App() {
+  // Game Setup & Core State with synchronous initial priorities
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const initialPriorities = getMonthPriorities(1, [], []);
+    return {
+      presidentName: 'President Oluwaseun Adewale',
+      partyName: 'Federal Unity Party (FUP)',
+      currentMonth: 1,
+      maxMonths: 12,
+      politicalCapital: 50,
+      treasuryBillionNaira: 4850,
+      factions: JSON.parse(JSON.stringify(INITIAL_FACTIONS)),
+      characters: JSON.parse(JSON.stringify(INITIAL_CHARACTERS)),
+      promises: JSON.parse(JSON.stringify(INITIAL_PROMISES)),
+      activeCrisis: initialPriorities[0] || null,
+      priorityCrises: initialPriorities,
+      delayedEvents: [],
+      recentHeadlines: [],
+      pastDecisions: [],
+      isGameOver: false,
+      ending: null,
+      endingNarrative: null,
+    };
+  });
+
+  // Modals & Panels
+  const [isExecutiveModalOpen, setIsExecutiveModalOpen] = useState(false);
+  const [isCabinetModalOpen, setIsCabinetModalOpen] = useState(false);
+  const [isPromisesModalOpen, setIsPromisesModalOpen] = useState(false);
+  const [isNewspaperModalOpen, setIsNewspaperModalOpen] = useState(false);
+  const [isArchiveModalOpen, setIsArchiveModalOpen] = useState(false);
+  const [isNewGameDialogOpen, setIsNewGameDialogOpen] = useState(false);
+
+  // New Game customizer inputs
+  const [customName, setCustomName] = useState('President Oluwaseun Adewale');
+  const [customParty, setCustomParty] = useState(PARTIES[0]);
+
+  // Last decision feedback toast
+  const [decisionFeedback, setDecisionFeedback] = useState<{
+    headline: string;
+    text: string;
+    factions: Partial<Record<FactionId, number>>;
+    characterQuotes?: string;
+  } | null>(null);
+
+  // Archive records
+  const [archive, setArchive] = useState<PresidentialRecord[]>(getPresidentialArchive());
+
+  // Handle Crisis Choice Selection
+  const handleSelectChoice = (choice: CrisisChoice) => {
+    if (!gameState.activeCrisis) return;
+
+    playGavelKnock();
+
+    const crisis = gameState.activeCrisis;
+    const impact = choice.impact;
+
+    // Calculate new factions
+    const nextFactions = { ...gameState.factions };
+    Object.entries(impact.factions).forEach(([fKey, delta]) => {
+      if (delta) {
+        const id = fKey as FactionId;
+        const currentVal = nextFactions[id].value;
+        const newVal = Math.min(100, Math.max(0, currentVal + delta));
+        nextFactions[id] = {
+          ...nextFactions[id],
+          value: newVal,
+          trend: delta > 0 ? 'up' : delta < 0 ? 'down' : 'steady',
+          isHostile: newVal < 22,
+        };
+      }
+    });
+
+    // Capital & Treasury
+    const capitalCost = choice.capitalCost || 0;
+    const nextCapital = Math.max(0, gameState.politicalCapital - capitalCost);
+    const treasuryDelta = impact.treasuryBillion || 0;
+    const nextTreasury = Math.max(0, gameState.treasuryBillionNaira + treasuryDelta);
+
+    // Characters Loyalty & Memories
+    const nextCharacters = { ...gameState.characters };
+    if (impact.characterLoyalty) {
+      Object.entries(impact.characterLoyalty).forEach(([charId, delta]) => {
+        if (nextCharacters[charId]) {
+          const currentLoyalty = nextCharacters[charId].loyalty;
+          const newLoyalty = Math.min(100, Math.max(0, currentLoyalty + delta));
+          nextCharacters[charId] = {
+            ...nextCharacters[charId],
+            loyalty: newLoyalty,
+            memories: [
+              `Month ${gameState.currentMonth}: ${choice.label} on "${crisis.title}"`,
+              ...nextCharacters[charId].memories.slice(0, 5),
+            ],
+            status: newLoyalty < 15 ? 'resigned' : nextCharacters[charId].status,
+          };
+        }
+      });
+    }
+
+    // Promise progress
+    const nextPromises = [...gameState.promises];
+    if (impact.promiseEffect) {
+      const { promiseId, progressDelta, statusUpdate } = impact.promiseEffect;
+      const pIdx = nextPromises.findIndex((p) => p.id === promiseId);
+      if (pIdx >= 0) {
+        const p = nextPromises[pIdx];
+        const newProg = Math.min(100, Math.max(0, p.progress + progressDelta));
+        nextPromises[pIdx] = {
+          ...p,
+          progress: newProg,
+          status: statusUpdate || (newProg >= 90 ? 'Fulfilled' : newProg <= 15 ? 'Broken' : 'In Progress'),
+        };
+      }
+    }
+
+    // Delayed consequences
+    const nextDelayed = [...gameState.delayedEvents];
+    if (impact.delayedTrigger) {
+      nextDelayed.push({
+        id: `delay_${Date.now()}`,
+        triggerMonth: gameState.currentMonth + impact.delayedTrigger.inMonths,
+        crisisId: impact.delayedTrigger.crisisId,
+        reason: impact.delayedTrigger.reason,
+      });
+    }
+
+    // Create newspaper issue
+    const newIssue: NewspaperIssue = {
+      month: gameState.currentMonth,
+      publicationName: 'The Daily Mandate',
+      headline: choice.newspaperHeadline,
+      subhead: `Aso Rock addresses ${crisis.title} with historic executive action.`,
+      editorialSnippet: choice.feedbackText,
+      cartoonCaption: `Presidential signature seals verdict on ${crisis.title.toLowerCase()}.`,
+      publicReaction: `Citizens and market operators react to the ${choice.label.toLowerCase()} decision.`,
+      sourceDecision: choice.label,
+    };
+
+    const nextHeadlines = [newIssue, ...gameState.recentHeadlines];
+
+    // Past decisions audit
+    const newPastDecision = {
+      month: gameState.currentMonth,
+      crisisTitle: crisis.title,
+      choiceLabel: choice.label,
+      impactSummary: choice.feedbackText,
+    };
+    const nextPastDecisions = [newPastDecision, ...gameState.pastDecisions];
+
+    // Show feedback banner
+    setDecisionFeedback({
+      headline: choice.newspaperHeadline,
+      text: choice.feedbackText,
+      factions: impact.factions,
+    });
+
+    // Check game over / systemic collapse condition
+    // Collapse occurs if 3 or more factions are simultaneously in hostile breakdown (< 20)
+    const hostileCount = Object.values(nextFactions).filter((f) => f.value < 20).length;
+    const isTermFinished = gameState.currentMonth >= gameState.maxMonths;
+
+    if (hostileCount >= 3) {
+      // Constitutional collapse!
+      triggerGameEnd('collapse', nextFactions, nextTreasury, nextPromises, nextPastDecisions);
+      return;
+    }
+
+    if (isTermFinished) {
+      // Calculate election outcome
+      const avgApproval =
+        (nextFactions.public.value * 2 +
+          nextFactions.party.value +
+          nextFactions.governors.value +
+          nextFactions.assembly.value) /
+        5;
+
+      let finalEnding: GameEndingType = 'second_term';
+      if (avgApproval >= 58) {
+        finalEnding = 'second_term';
+      } else if (avgApproval >= 48) {
+        finalEnding = 'successor';
+      } else {
+        finalEnding = 'opposition';
+      }
+
+      triggerGameEnd(finalEnding, nextFactions, nextTreasury, nextPromises, nextPastDecisions);
+      return;
+    }
+
+    // Advance to next month
+    const nextMonth = gameState.currentMonth + 1;
+    // Monthly political capital regeneration: +6 base, + bonuses for healthy factions
+    const capitalRegen = 6 + (nextFactions.party.value > 60 ? 2 : 0) + (nextFactions.assembly.value > 60 ? 2 : 0);
+    const refreshedCapital = Math.min(100, nextCapital + capitalRegen);
+
+    const nextPriorities = getMonthPriorities(nextMonth, nextDelayed, nextPastDecisions);
+
+    setGameState((prev) => ({
+      ...prev,
+      currentMonth: nextMonth,
+      politicalCapital: refreshedCapital,
+      treasuryBillionNaira: nextTreasury,
+      factions: nextFactions,
+      characters: nextCharacters,
+      promises: nextPromises,
+      delayedEvents: nextDelayed,
+      recentHeadlines: nextHeadlines,
+      pastDecisions: nextPastDecisions,
+      priorityCrises: nextPriorities,
+      activeCrisis: nextPriorities[0] || null,
+    }));
+  };
+
+  // Trigger Election / Ending Screen
+  const triggerGameEnd = (
+    ending: GameEndingType,
+    factions: Record<FactionId, FactionState>,
+    finalTreasury: number,
+    promises: GameState['promises'],
+    pastDecisions: GameState['pastDecisions']
+  ) => {
+    const approval = factions.public.value;
+    const treasuryTrillion = finalTreasury / 1000;
+    const fulfilled = promises.filter((p) => p.status === 'Fulfilled' || p.progress >= 85).length;
+    const broken = promises.filter((p) => p.status === 'Broken' || p.progress < 30).length;
+    const ministersFired = Object.values(gameState.characters).filter((c) => c.status === 'fired').length;
+
+    const legacy = generateLegacyTitle(ending, approval, treasuryTrillion, fulfilled, ministersFired);
+
+    const record: PresidentialRecord = {
+      id: `record_${Date.now()}`,
+      presidentName: gameState.presidentName,
+      partyName: gameState.partyName,
+      completedAt: new Date().toISOString().split('T')[0],
+      totalMonths: gameState.currentMonth,
+      ending,
+      legacyTitle: legacy,
+      finalApproval: approval,
+      decisionsMade: pastDecisions.length,
+      ministersDismissed: ministersFired,
+      investigationsLaunched: 1,
+      protestsQuelled: 1,
+      promisesFulfilled: fulfilled,
+      promisesBroken: broken,
+      finalTreasuryTrillion: treasuryTrillion,
+      finalCapital: gameState.politicalCapital,
+      keyEventsSummary: pastDecisions.slice(0, 4).map((d) => `Month ${d.month}: ${d.crisisTitle} — ${d.choiceLabel}`),
+    };
+
+    savePresidentialRecord(record);
+    setArchive(getPresidentialArchive());
+
+    setGameState((prev) => ({
+      ...prev,
+      isGameOver: true,
+      ending,
+    }));
+  };
+
+  // Execute an Executive Action (-PC)
+  const handleExecuteAction = (actionId: string, cost: number, targetId?: string) => {
+    setGameState((prev) => {
+      const nextCapital = Math.max(0, prev.politicalCapital - cost);
+      const nextFactions = { ...prev.factions };
+      const nextCharacters = { ...prev.characters };
+      let treasuryDelta = 0;
+
+      switch (actionId) {
+        case 'call_governor':
+          nextFactions.governors.value = Math.min(100, nextFactions.governors.value + 8);
+          if (targetId && nextCharacters[targetId]) {
+            nextCharacters[targetId].loyalty = Math.min(100, nextCharacters[targetId].loyalty + 10);
+            nextCharacters[targetId].memories.unshift(
+              `Month ${prev.currentMonth}: Received presidential private hotline consultation.`
+            );
+          }
+          break;
+
+        case 'meet_party_leaders':
+          nextFactions.party.value = Math.min(100, nextFactions.party.value + 12);
+          nextCharacters.party_chairman.loyalty = Math.min(100, nextCharacters.party_chairman.loyalty + 10);
+          nextCharacters.party_chairman.memories.unshift(
+            `Month ${prev.currentMonth}: Attended exclusive Villa caucus banquet.`
+          );
+          break;
+
+        case 'address_nation':
+          nextFactions.public.value = Math.min(100, nextFactions.public.value + 10);
+          nextFactions.media.value = Math.min(100, nextFactions.media.value + 8);
+          treasuryDelta = -20;
+          break;
+
+        case 'fire_minister':
+          if (targetId && nextCharacters[targetId]) {
+            nextCharacters[targetId].status = 'fired';
+            nextCharacters[targetId].loyalty = 5;
+            nextCharacters[targetId].memories.unshift(
+              `Month ${prev.currentMonth}: Relieved of ministerial portfolio by presidential directive.`
+            );
+          }
+          nextFactions.public.value = Math.min(100, nextFactions.public.value + 12);
+          nextFactions.media.value = Math.min(100, nextFactions.media.value + 8);
+          break;
+
+        case 'launch_investigation':
+          nextFactions.public.value = Math.min(100, nextFactions.public.value + 14);
+          nextFactions.governors.value = Math.max(0, nextFactions.governors.value - 10);
+          treasuryDelta = 45; // Recovered assets
+          break;
+
+        case 'push_legislation':
+          nextFactions.assembly.value = Math.min(100, nextFactions.assembly.value + 16);
+          nextCharacters.senate_leader.loyalty = Math.min(100, nextCharacters.senate_leader.loyalty + 8);
+          break;
+
+        case 'cabinet_reshuffle':
+          nextFactions.public.value = Math.min(100, nextFactions.public.value + 10);
+          nextFactions.party.value = Math.min(100, nextFactions.party.value + 6);
+          break;
+
+        case 'emergency_intervention':
+          // Quells all hostiles instantly
+          Object.keys(nextFactions).forEach((k) => {
+            const f = k as FactionId;
+            nextFactions[f].value = Math.min(100, nextFactions[f].value + 16);
+            nextFactions[f].isHostile = false;
+          });
+          treasuryDelta = -150;
+          break;
+      }
+
+      // Re-evaluate hostility
+      Object.keys(nextFactions).forEach((k) => {
+        const f = k as FactionId;
+        nextFactions[f].isHostile = nextFactions[f].value < 22;
+      });
+
+      return {
+        ...prev,
+        politicalCapital: nextCapital,
+        treasuryBillionNaira: Math.max(0, prev.treasuryBillionNaira + treasuryDelta),
+        factions: nextFactions,
+        characters: nextCharacters,
+      };
+    });
+  };
+
+  // Restart / New Presidency
+  const handleStartNewPresidency = (pName?: string, pParty?: string) => {
+    const finalName = pName || customName || 'President Oluwaseun Adewale';
+    const finalParty = pParty || customParty || PARTIES[0];
+
+    const resetFactions = JSON.parse(JSON.stringify(INITIAL_FACTIONS));
+    const resetCharacters = JSON.parse(JSON.stringify(INITIAL_CHARACTERS));
+    const resetPromises = JSON.parse(JSON.stringify(INITIAL_PROMISES));
+    const initialPriorities = getMonthPriorities(1, [], []);
+
+    setGameState({
+      presidentName: finalName,
+      partyName: finalParty,
+      currentMonth: 1,
+      maxMonths: 12,
+      politicalCapital: 50,
+      treasuryBillionNaira: 4850,
+      factions: resetFactions,
+      characters: resetCharacters,
+      promises: resetPromises,
+      activeCrisis: initialPriorities[0] || null,
+      priorityCrises: initialPriorities,
+      delayedEvents: [],
+      recentHeadlines: [],
+      pastDecisions: [],
+      isGameOver: false,
+      ending: null,
+      endingNarrative: null,
+    });
+
+    setDecisionFeedback(null);
+    setIsNewGameDialogOpen(false);
+  };
+
+  // If Game Over, render Grand Election & Mandate screen
+  if (gameState.isGameOver && gameState.ending) {
+    const latestRecord = archive[0] || {
+      id: 'rec_latest',
+      presidentName: gameState.presidentName,
+      partyName: gameState.partyName,
+      completedAt: new Date().toISOString().split('T')[0],
+      totalMonths: gameState.currentMonth,
+      ending: gameState.ending,
+      legacyTitle: 'The Mandate Holder',
+      finalApproval: gameState.factions.public.value,
+      decisionsMade: gameState.pastDecisions.length,
+      ministersDismissed: 0,
+      investigationsLaunched: 1,
+      protestsQuelled: 1,
+      promisesFulfilled: 3,
+      promisesBroken: 2,
+      finalTreasuryTrillion: gameState.treasuryBillionNaira / 1000,
+      finalCapital: gameState.politicalCapital,
+      keyEventsSummary: [],
+    };
+
+    return (
+      <ElectionEndingScreen
+        ending={gameState.ending}
+        record={latestRecord}
+        factions={gameState.factions}
+        promises={gameState.promises}
+        onPlayAgain={() => setIsNewGameDialogOpen(true)}
+        onViewArchive={() => setIsArchiveModalOpen(true)}
+      />
+    );
+  }
+
+  const currentReporter =
+    gameState.activeCrisis
+      ? gameState.characters[gameState.activeCrisis.reportedByCharacterId]
+      : undefined;
+
+  return (
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-emerald-800 selection:text-white">
+      {/* Top Presidential Briefing Ribbon */}
+      <PresidentialBriefing
+        currentMonth={gameState.currentMonth}
+        maxMonths={gameState.maxMonths}
+        politicalCapital={gameState.politicalCapital}
+        treasuryBillionNaira={gameState.treasuryBillionNaira}
+        factions={gameState.factions}
+        presidentName={gameState.presidentName}
+        partyName={gameState.partyName}
+        onOpenExecutiveActions={() => setIsExecutiveModalOpen(true)}
+        onOpenCabinetDossier={() => setIsCabinetModalOpen(true)}
+        onOpenPromises={() => setIsPromisesModalOpen(true)}
+        onOpenNewspaper={() => setIsNewspaperModalOpen(true)}
+        onOpenArchive={() => setIsArchiveModalOpen(true)}
+        unreadHeadlinesCount={gameState.recentHeadlines.length}
+      />
+
+      {/* Main Command Room Workspace */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
+        {/* Month Priority Triage Deck (Section 1 of Design Doc) */}
+        {gameState.priorityCrises.length > 1 && (
+          <section className="bg-neutral-900/70 border border-neutral-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">
+                  Daily Presidential Briefing • Month {gameState.currentMonth} Priorities
+                </span>
+                <h3 className="text-base sm:text-lg font-cinzel font-bold text-neutral-100">
+                  Today's Competing Agendas — Choose Where to Intervene
+                </h3>
+              </div>
+              <span className="text-xs text-neutral-400 italic">
+                "Choosing what to ignore is itself an executive decision."
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {gameState.priorityCrises.map((pCrisis, idx) => {
+                const isSelected = gameState.activeCrisis?.id === pCrisis.id;
+                const isDelayed = pCrisis.isDelayedSpinoff;
+
+                return (
+                  <button
+                    key={pCrisis.id}
+                    onClick={() => {
+                      playAlertTone();
+                      setGameState((prev) => ({ ...prev, activeCrisis: pCrisis }));
+                    }}
+                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-neutral-950 border-emerald-500 ring-1 ring-emerald-500/50 shadow-md'
+                        : 'bg-neutral-950/50 hover:bg-neutral-900 border-neutral-800'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-[10px] mb-1">
+                        <span className="font-mono text-neutral-400">Priority #{idx + 1}</span>
+                        {isDelayed && (
+                          <span className="text-amber-400 font-bold flex items-center gap-0.5">
+                            <Flame className="w-2.5 h-2.5" /> Past Fallout
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-xs text-neutral-200 line-clamp-1">{pCrisis.title}</h4>
+                      <p className="text-[11px] text-neutral-400 line-clamp-2 mt-1">
+                        {pCrisis.contextDescription}
+                      </p>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-neutral-800/80 flex items-center justify-between text-[10px]">
+                      <span className="capitalize text-neutral-400 font-medium">{pCrisis.category}</span>
+                      <span
+                        className={`font-semibold flex items-center gap-1 ${
+                          isSelected ? 'text-emerald-400' : 'text-neutral-400'
+                        }`}
+                      >
+                        {isSelected ? 'Active File' : 'Open File'} <ChevronRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Feedback Alert from Previous Decision */}
+        {decisionFeedback && (
+          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 via-neutral-900 to-neutral-950 border border-emerald-500/40 shadow-md flex items-start gap-3 animate-in fade-in duration-300">
+            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
+                Presidential Order Dispatched & Gazetted
+              </span>
+              <h4 className="font-bold text-sm text-neutral-100 font-cinzel">{decisionFeedback.headline}</h4>
+              <p className="text-xs text-neutral-300 mt-0.5">{decisionFeedback.text}</p>
+            </div>
+            <button
+              onClick={() => setDecisionFeedback(null)}
+              className="text-neutral-500 hover:text-neutral-300 text-xs px-2 py-1 rounded bg-neutral-800/50"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Active Crisis File Card */}
+        {gameState.activeCrisis ? (
+          <CrisisCard
+            crisis={gameState.activeCrisis}
+            reporter={currentReporter}
+            politicalCapital={gameState.politicalCapital}
+            onSelectChoice={handleSelectChoice}
+          />
+        ) : (
+          <div className="text-center py-16 bg-neutral-900/50 rounded-2xl border border-neutral-800">
+            <Calendar className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+            <h3 className="font-cinzel text-xl font-bold">Cabinet Session Adjourned</h3>
+            <p className="text-xs text-neutral-400 mt-1">
+              Preparing national briefing dossiers for Month {gameState.currentMonth + 1}...
+            </p>
+          </div>
+        )}
+      </main>
+
+      {/* Footer Systemic Status & Nigerian Context */}
+      <footer className="bg-neutral-950 border-t border-neutral-800/80 px-4 py-3 text-xs text-neutral-400">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            <span className="font-semibold text-neutral-300">Aso Rock: Full Mandate</span>
+            <span className="text-neutral-600">•</span>
+            <span>A Nigerian Political Survival Strategy Prototype</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px]">
+            <span>Systemic Factions (Not Health Bars)</span>
+            <span className="text-neutral-600">•</span>
+            <span>Persistent Consequence Engine</span>
+            <span className="text-neutral-600">•</span>
+            <button
+              onClick={() => setIsNewGameDialogOpen(true)}
+              className="text-emerald-400 hover:text-emerald-300 font-semibold"
+            >
+              Restart Presidency
+            </button>
+          </div>
+        </div>
+      </footer>
+
+      {/* All Sub-Modals */}
+      <ExecutiveActionsModal
+        isOpen={isExecutiveModalOpen}
+        onClose={() => setIsExecutiveModalOpen(false)}
+        politicalCapital={gameState.politicalCapital}
+        characters={gameState.characters}
+        onExecuteAction={handleExecuteAction}
+      />
+
+      <CabinetDossier
+        isOpen={isCabinetModalOpen}
+        onClose={() => setIsCabinetModalOpen(false)}
+        characters={gameState.characters}
+      />
+
+      <PromiseLedgerModal
+        isOpen={isPromisesModalOpen}
+        onClose={() => setIsPromisesModalOpen(false)}
+        promises={gameState.promises}
+      />
+
+      <NewspaperModal
+        isOpen={isNewspaperModalOpen}
+        onClose={() => setIsNewspaperModalOpen(false)}
+        issues={gameState.recentHeadlines}
+        currentMonth={gameState.currentMonth}
+      />
+
+      <PresidentialArchiveModal
+        isOpen={isArchiveModalOpen}
+        onClose={() => setIsArchiveModalOpen(false)}
+        archive={archive}
+        onStartNewPresidency={() => setIsNewGameDialogOpen(true)}
+      />
+
+      {/* New Presidency Dialog */}
+      {isNewGameDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-2 border-b border-neutral-800 pb-3">
+              <span className="text-2xl">🇳🇬</span>
+              <div>
+                <h3 className="font-cinzel text-lg font-bold text-neutral-100">Swear In New Presidency</h3>
+                <p className="text-xs text-neutral-400">Configure your candidate credentials</p>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-neutral-300 block mb-1">President's Name:</label>
+              <input
+                type="text"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-emerald-500"
+                placeholder="e.g. President Babatunde Cole"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-neutral-300 block mb-1">Ruling Political Party:</label>
+              <select
+                value={customParty}
+                onChange={(e) => setCustomParty(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-emerald-500"
+              >
+                {PARTIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setIsNewGameDialogOpen(false)}
+                className="px-3 py-1.5 rounded-lg bg-neutral-800 text-neutral-300 text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleStartNewPresidency(customName, customParty)}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-neutral-950 font-bold text-xs shadow-md"
+              >
+                Take Presidential Oath
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
