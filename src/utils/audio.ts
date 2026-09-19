@@ -119,6 +119,79 @@ export function playDecisionStamp() {
   osc.stop(now + 0.1);
 }
 
+// 3b. Heavy Executive Seal Stamp Thud (Satisfying physical decree slam)
+export function playSealStampThud() {
+  if (isAudioMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+
+  // Low frequency thud
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(160, now);
+  osc.frequency.exponentialRampToValueAtTime(28, now + 0.18);
+
+  gain.gain.setValueAtTime(0.85, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.22);
+
+  // High frequency ink slap noise
+  try {
+    const bufferSize = ctx.sampleRate * 0.06;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 1200;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.35, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.06);
+
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noise.start(now);
+  } catch {
+    // Fallback if buffer creation fails
+  }
+}
+
+// 3c. Pen Signature Scratch
+export function playPenScratch() {
+  if (isAudioMuted) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(580, now);
+  osc.frequency.linearRampToValueAtTime(820, now + 0.06);
+  osc.frequency.linearRampToValueAtTime(440, now + 0.12);
+
+  gain.gain.setValueAtTime(0.08, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.14);
+}
+
 // 4. Alert Beep (Crisis escalation or Hostility)
 export function playAlertTone() {
   if (isAudioMuted) return;

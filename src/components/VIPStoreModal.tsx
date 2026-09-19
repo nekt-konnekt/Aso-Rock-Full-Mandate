@@ -153,44 +153,44 @@ export const VIPStoreModal: React.FC<VIPStoreModalProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                  className={`p-5 rounded-2xl border-2 flex flex-col justify-between transition-all ${
                     isUnlocked
-                      ? 'bg-neutral-950/80 border-emerald-500/40 shadow-sm'
-                      : 'bg-neutral-950/50 hover:bg-neutral-950 border-neutral-800 hover:border-neutral-700'
+                      ? 'bg-neutral-950 border-emerald-500/60 shadow-md'
+                      : 'bg-neutral-950/80 hover:bg-neutral-950 border-neutral-800 hover:border-neutral-700'
                   }`}
                 >
                   <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start justify-between gap-2 mb-2.5">
                       <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                        <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
                           {item.badge}
                         </span>
-                        <h4 className="font-bold text-sm text-neutral-100 mt-1.5 font-cinzel">
+                        <h4 className="font-bold text-base sm:text-lg text-neutral-100 mt-2 font-cinzel">
                           {item.name}
                         </h4>
                       </div>
-                      <span className="text-sm font-mono font-bold text-emerald-400">
+                      <span className="text-base sm:text-lg font-mono font-black text-emerald-400">
                         {formattedPrice}
                       </span>
                     </div>
 
-                    <p className="text-xs text-neutral-400 leading-relaxed mb-3">
+                    <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed mb-3.5">
                       {item.description}
                     </p>
 
-                    <div className="space-y-1.5 mb-4">
+                    <div className="space-y-2 mb-4">
                       {item.perks.map((perk, i) => (
-                        <div key={i} className="flex items-start gap-1.5 text-[11px] text-neutral-300">
-                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                        <div key={i} className="flex items-start gap-2 text-xs sm:text-sm text-neutral-200">
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                           <span>{perk}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="pt-3 border-t border-neutral-800/80">
+                  <div className="pt-3 border-t border-neutral-800">
                     {isUnlocked ? (
-                      <div className="w-full py-2 px-3 rounded-lg bg-emerald-950/60 border border-emerald-700/50 text-emerald-400 text-xs font-bold flex items-center justify-center gap-1.5">
+                      <div className="w-full py-2.5 px-4 rounded-xl bg-emerald-950/80 border border-emerald-600/60 text-emerald-300 text-xs sm:text-sm font-bold flex items-center justify-center gap-2">
                         <Check className="w-4 h-4" />
                         <span>Active in Mandate</span>
                       </div>
@@ -198,10 +198,10 @@ export const VIPStoreModal: React.FC<VIPStoreModalProps> = ({
                       <button
                         onClick={() => handleBuy(item)}
                         disabled={isPurchasing}
-                        className="w-full py-2 px-4 rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-neutral-950 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+                        className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-neutral-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer disabled:opacity-50 active:scale-98"
                       >
-                        <CreditCard className="w-3.5 h-3.5" />
-                        <span>{isPurchasing ? 'Authorizing...' : `Authorize ${formattedPrice}`}</span>
+                        <CreditCard className="w-4 h-4" />
+                        <span>{isPurchasing ? 'Authorizing...' : `Unlock Perk (${formattedPrice})`}</span>
                       </button>
                     )}
                   </div>

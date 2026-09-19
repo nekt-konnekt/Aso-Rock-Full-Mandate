@@ -32,6 +32,7 @@ import { CampaignSetupModal } from './components/CampaignSetupModal';
 import { VIPStoreModal } from './components/VIPStoreModal';
 import { GeopoliticalMapModal } from './components/GeopoliticalMapModal';
 import { MonthEndReportModal } from './components/MonthEndReportModal';
+import { PresidentialScorecardModal } from './components/PresidentialScorecardModal';
 import {
   getPresidentialArchive,
   savePresidentialRecord,
@@ -57,6 +58,8 @@ import {
   Sparkles,
   ChevronRight,
   Users,
+  Award,
+  Compass,
 } from 'lucide-react';
 
 const INITIAL_FACTIONS: Record<FactionId, FactionState> = {
@@ -207,6 +210,7 @@ export default function App() {
   const [isCampaignSetupOpen, setIsCampaignSetupOpen] = useState(false);
   const [isVIPStoreOpen, setIsVIPStoreOpen] = useState(false);
   const [isGeopoliticalMapOpen, setIsGeopoliticalMapOpen] = useState(false);
+  const [isScorecardOpen, setIsScorecardOpen] = useState(false);
 
   // Last decision feedback toast
   const [decisionFeedback, setDecisionFeedback] = useState<{
@@ -700,14 +704,42 @@ export default function App() {
     };
 
     return (
-      <ElectionEndingScreen
-        ending={gameState.ending}
-        record={latestRecord}
-        factions={gameState.factions}
-        promises={gameState.promises}
-        onPlayAgain={() => setIsCampaignSetupOpen(true)}
-        onViewArchive={() => setIsArchiveModalOpen(true)}
-      />
+      <>
+        <ElectionEndingScreen
+          ending={gameState.ending}
+          record={latestRecord}
+          factions={gameState.factions}
+          promises={gameState.promises}
+          onPlayAgain={() => setIsCampaignSetupOpen(true)}
+          onViewArchive={() => setIsArchiveModalOpen(true)}
+          onOpenScorecard={() => setIsScorecardOpen(true)}
+        />
+        <PresidentialArchiveModal
+          isOpen={isArchiveModalOpen}
+          onClose={() => setIsArchiveModalOpen(false)}
+          archive={archive}
+          onStartNewPresidency={() => {
+            setIsArchiveModalOpen(false);
+            setIsCampaignSetupOpen(true);
+          }}
+          onUpdateArchive={setArchive}
+        />
+        <PresidentialScorecardModal
+          isOpen={isScorecardOpen}
+          onClose={() => setIsScorecardOpen(false)}
+          presidentName={gameState.presidentName}
+          partyName={gameState.partyName}
+          archetype={gameState.archetype}
+          currentMonth={gameState.currentMonth}
+          maxMonths={gameState.maxMonths}
+          factions={gameState.factions}
+          treasuryBillionNaira={gameState.treasuryBillionNaira}
+          politicalCapital={gameState.politicalCapital}
+          promises={gameState.promises}
+          geopoliticalZones={Object.values(gameState.geopoliticalZones)}
+          legacyTitle={latestRecord.legacyTitle}
+        />
+      </>
     );
   }
 
@@ -735,31 +767,30 @@ export default function App() {
         onOpenNewspaper={() => setIsNewspaperModalOpen(true)}
         onOpenArchive={() => setIsArchiveModalOpen(true)}
         onOpenGeopoliticalMap={() => setIsGeopoliticalMapOpen(true)}
-        onOpenStore={() => setIsVIPStoreOpen(true)}
         onReturnToTitle={() => setGameState((p) => ({ ...p, gameStage: 'title_screen' }))}
         unreadHeadlinesCount={gameState.recentHeadlines.length}
       />
 
       {/* Main Command Room Workspace */}
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-6 space-y-6">
-        {/* Month Priority Triage Deck (Section 1 of Design Doc) */}
+        {/* Month Priority Triage Deck */}
         {gameState.priorityCrises.length > 1 && (
-          <section className="bg-neutral-900/70 border border-neutral-800/90 rounded-2xl p-4 sm:p-5 shadow-lg">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <section className="bg-neutral-900 border-2 border-neutral-800 rounded-3xl p-5 sm:p-6 shadow-xl">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">
+                <span className="text-xs uppercase font-bold tracking-wider text-neutral-400">
                   Daily Presidential Briefing • Month {gameState.currentMonth} Priorities
                 </span>
-                <h3 className="text-base sm:text-lg font-cinzel font-bold text-neutral-100">
-                  Today's Competing Agendas — Choose Where to Intervene
+                <h3 className="text-lg sm:text-xl font-cinzel font-black text-neutral-100">
+                  Competing Agendas — Choose Where to Intervene
                 </h3>
               </div>
-              <span className="text-xs text-neutral-400 italic">
+              <span className="text-xs sm:text-sm text-neutral-300 italic font-medium">
                 "Choosing what to ignore is itself an executive decision."
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
               {gameState.priorityCrises.map((pCrisis, idx) => {
                 const isSelected = gameState.activeCrisis?.id === pCrisis.id;
                 const isDelayed = pCrisis.isDelayedSpinoff;
@@ -771,35 +802,35 @@ export default function App() {
                       playAlertTone();
                       setGameState((prev) => ({ ...prev, activeCrisis: pCrisis }));
                     }}
-                    className={`p-3 rounded-xl border text-left transition-all flex flex-col justify-between ${
+                    className={`p-4 rounded-2xl border-2 text-left transition-all flex flex-col justify-between active:scale-98 ${
                       isSelected
-                        ? 'bg-neutral-950 border-emerald-500 ring-1 ring-emerald-500/50 shadow-md'
-                        : 'bg-neutral-950/50 hover:bg-neutral-900 border-neutral-800'
+                        ? 'bg-neutral-950 border-emerald-400 ring-2 ring-emerald-500/40 shadow-lg'
+                        : 'bg-neutral-950/80 hover:bg-neutral-800 border-neutral-800 hover:border-neutral-700'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between text-[10px] mb-1">
-                        <span className="font-mono text-neutral-400">Priority #{idx + 1}</span>
+                      <div className="flex items-center justify-between text-xs mb-1.5">
+                        <span className="font-mono font-bold text-neutral-400">Priority #{idx + 1}</span>
                         {isDelayed && (
-                          <span className="text-amber-400 font-bold flex items-center gap-0.5">
-                            <Flame className="w-2.5 h-2.5" /> Past Fallout
+                          <span className="text-amber-400 font-bold text-xs flex items-center gap-1">
+                            <Flame className="w-3.5 h-3.5" /> Past Fallout
                           </span>
                         )}
                       </div>
-                      <h4 className="font-bold text-xs text-neutral-200 line-clamp-1">{pCrisis.title}</h4>
-                      <p className="text-[11px] text-neutral-400 line-clamp-2 mt-1">
+                      <h4 className="font-bold text-sm sm:text-base text-neutral-100 line-clamp-1">{pCrisis.title}</h4>
+                      <p className="text-xs sm:text-sm text-neutral-300 line-clamp-2 mt-1.5 leading-relaxed font-normal">
                         {pCrisis.contextDescription}
                       </p>
                     </div>
 
-                    <div className="mt-2 pt-2 border-t border-neutral-800/80 flex items-center justify-between text-[10px]">
-                      <span className="capitalize text-neutral-400 font-medium">{pCrisis.category}</span>
+                    <div className="mt-3 pt-2.5 border-t border-neutral-800 flex items-center justify-between text-xs">
+                      <span className="capitalize text-neutral-300 font-semibold">{pCrisis.category}</span>
                       <span
-                        className={`font-semibold flex items-center gap-1 ${
+                        className={`font-bold flex items-center gap-1 ${
                           isSelected ? 'text-emerald-400' : 'text-neutral-400'
                         }`}
                       >
-                        {isSelected ? 'Active File' : 'Open File'} <ChevronRight className="w-3 h-3" />
+                        {isSelected ? 'Active File' : 'Open File'} <ChevronRight className="w-3.5 h-3.5" />
                       </span>
                     </div>
                   </button>
@@ -811,23 +842,57 @@ export default function App() {
 
         {/* Feedback Alert from Previous Decision */}
         {decisionFeedback && (
-          <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 via-neutral-900 to-neutral-950 border border-emerald-500/40 shadow-md flex items-start gap-3 animate-in fade-in duration-300">
-            <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-neutral-900 to-neutral-950 border-2 border-emerald-500/50 shadow-lg flex items-start gap-3.5 animate-in fade-in duration-300">
+            <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">
+              <span className="text-xs uppercase font-bold text-emerald-400 tracking-wider">
                 Presidential Order Dispatched & Gazetted
               </span>
-              <h4 className="font-bold text-sm text-neutral-100 font-cinzel">{decisionFeedback.headline}</h4>
-              <p className="text-xs text-neutral-300 mt-0.5">{decisionFeedback.text}</p>
+              <h4 className="font-black text-base sm:text-lg text-neutral-100 font-cinzel mt-0.5">{decisionFeedback.headline}</h4>
+              <p className="text-sm text-neutral-200 mt-1 font-normal leading-relaxed">{decisionFeedback.text}</p>
             </div>
             <button
               onClick={() => setDecisionFeedback(null)}
-              className="text-neutral-500 hover:text-neutral-300 text-xs px-2 py-1 rounded bg-neutral-800/50"
+              className="text-neutral-400 hover:text-neutral-200 text-xs font-bold px-2.5 py-1 rounded-lg bg-neutral-800/80 border border-neutral-700"
             >
               Dismiss
             </button>
           </div>
         )}
+
+        {/* Executive Desk Controls Deck */}
+        <div className="bg-neutral-900 border-2 border-neutral-800 rounded-2xl px-5 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2.5">
+            <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs sm:text-sm font-mono uppercase font-bold tracking-wider text-neutral-200">
+              Aso Rock Villa Command Deck
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setIsVIPStoreOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-500/60 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95"
+              title="Access presidential perks, emergency war chest, and wiretaps"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Game Perks & Boosters</span>
+            </button>
+            <button
+              onClick={() => setIsExecutiveModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-neutral-950 text-xs sm:text-sm font-black flex items-center gap-2 shadow-md transition-all active:scale-95"
+            >
+              <Zap className="w-4 h-4 fill-current" />
+              <span>Executive Decree ({gameState.politicalCapital} PC)</span>
+            </button>
+            <button
+              onClick={() => setIsGeopoliticalMapOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-xs sm:text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95"
+            >
+              <Compass className="w-4 h-4 text-sky-400" />
+              <span>Geopolitical Map</span>
+            </button>
+          </div>
+        </div>
 
         {/* Active Crisis File Card */}
         {gameState.activeCrisis ? (
@@ -838,6 +903,7 @@ export default function App() {
             onSelectChoice={handleSelectChoice}
             timerEnabled={gameState.difficulty === 'iron_statesman'}
             intelligenceRadarActive={gameState.intelligenceRadarActive}
+            onOpenPerkStore={() => setIsVIPStoreOpen(true)}
           />
         ) : (
           <div className="text-center py-16 bg-neutral-900/50 rounded-2xl border border-neutral-800">
@@ -934,6 +1000,22 @@ export default function App() {
         onStartGame={handleStartNewCampaign}
         initialName={gameState.presidentName}
         initialParty={gameState.partyName}
+      />
+
+      <PresidentialScorecardModal
+        isOpen={isScorecardOpen}
+        onClose={() => setIsScorecardOpen(false)}
+        presidentName={gameState.presidentName}
+        partyName={gameState.partyName}
+        archetype={gameState.archetype}
+        currentMonth={gameState.currentMonth}
+        maxMonths={gameState.maxMonths}
+        factions={gameState.factions}
+        treasuryBillionNaira={gameState.treasuryBillionNaira}
+        politicalCapital={gameState.politicalCapital}
+        promises={gameState.promises}
+        geopoliticalZones={Object.values(gameState.geopoliticalZones)}
+        legacyTitle={gameState.endingNarrative?.split('.')[0]}
       />
 
       {/* Month End State of the Nation Report */}

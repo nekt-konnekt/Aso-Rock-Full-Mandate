@@ -21,6 +21,7 @@ interface ElectionEndingScreenProps {
   promises: CampaignPromise[];
   onPlayAgain: () => void;
   onViewArchive: () => void;
+  onOpenScorecard?: () => void;
 }
 
 export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
@@ -30,6 +31,7 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
   promises,
   onPlayAgain,
   onViewArchive,
+  onOpenScorecard,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -111,47 +113,73 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
         </div>
 
         {/* The 4-Year Scorecard Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-          <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 text-center">
+          <div className="bg-neutral-950 p-4 rounded-2xl border-2 border-neutral-800 shadow">
+            <span className="text-xs uppercase font-bold tracking-wider text-neutral-400 block mb-1">
               Final Public Approval
             </span>
-            <span className="text-3xl font-cinzel font-bold text-emerald-400">
+            <span className="text-3xl sm:text-4xl font-cinzel font-black text-emerald-400">
               {record.finalApproval}%
             </span>
           </div>
 
-          <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
+          <div className="bg-neutral-950 p-4 rounded-2xl border-2 border-neutral-800 shadow">
+            <span className="text-xs uppercase font-bold tracking-wider text-neutral-400 block mb-1">
               National Treasury
             </span>
-            <span className="text-2xl font-mono font-bold text-sky-400">
+            <span className="text-2xl sm:text-3xl font-mono font-bold text-sky-400">
               ₦{record.finalTreasuryTrillion.toFixed(2)}T
             </span>
           </div>
 
-          <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
+          <div className="bg-neutral-950 p-4 rounded-2xl border-2 border-neutral-800 shadow">
+            <span className="text-xs uppercase font-bold tracking-wider text-neutral-400 block mb-1">
               Promises Fulfilled
             </span>
-            <span className="text-2xl font-mono font-bold text-amber-400">
+            <span className="text-2xl sm:text-3xl font-mono font-bold text-amber-400">
               {record.promisesFulfilled} / {record.promisesFulfilled + record.promisesBroken}
             </span>
           </div>
 
-          <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-            <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-1">
-              Executive Decrees
+          <div className="bg-neutral-950 p-4 rounded-2xl border-2 border-neutral-800 shadow">
+            <span className="text-xs uppercase font-bold tracking-wider text-neutral-400 block mb-1">
+              Decrees Signed
             </span>
-            <span className="text-2xl font-mono font-bold text-purple-400">
+            <span className="text-2xl sm:text-3xl font-mono font-bold text-purple-400">
               {record.decisionsMade}
             </span>
           </div>
         </div>
 
+        {/* Highlighted Presidential Scorecard Banner */}
+        {onOpenScorecard && (
+          <div className="bg-gradient-to-r from-emerald-950 via-neutral-950 to-emerald-950 border-2 border-emerald-500/80 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-emerald-900/80 border border-emerald-400 text-emerald-300 flex items-center justify-center shrink-0 shadow">
+                <Award className="w-7 h-7 text-emerald-300" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-cinzel font-black text-emerald-300 uppercase tracking-wide">
+                  Official Presidential Scorecard & Gazette
+                </h3>
+                <p className="text-xs sm:text-sm text-neutral-300 mt-0.5">
+                  Generate your official high-resolution Presidential Gazette card ready for WhatsApp, X (Twitter), and Instagram sharing.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onOpenScorecard}
+              className="px-5 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-black text-sm flex items-center gap-2 transition-all shadow-lg active:scale-95 shrink-0"
+            >
+              <Award className="w-5 h-5 text-neutral-950" />
+              <span>Generate HD Scorecard</span>
+            </button>
+          </div>
+        )}
+
         {/* Promises Audit Breakdown */}
-        <div className="bg-neutral-950/70 border border-neutral-800 rounded-2xl p-5 space-y-3">
-          <h3 className="text-xs uppercase font-bold tracking-widest text-neutral-400 flex items-center gap-2">
+        <div className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5 space-y-3.5 shadow-inner">
+          <h3 className="text-xs sm:text-sm uppercase font-bold tracking-wider text-neutral-300 flex items-center gap-2">
             <ScrollText className="w-4 h-4 text-amber-400" />
             Voter Scorecard: Campaign Pledges Audit
           </h3>
@@ -164,9 +192,9 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
               return (
                 <div
                   key={p.id}
-                  className="bg-neutral-900/90 border border-neutral-800 p-3 rounded-lg flex items-center justify-between text-xs"
+                  className="bg-neutral-900 border border-neutral-800 p-3.5 rounded-xl flex items-center justify-between text-xs sm:text-sm shadow-sm"
                 >
-                  <div className="flex items-center gap-2 truncate pr-2">
+                  <div className="flex items-center gap-2.5 truncate pr-2">
                     {isDone ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     ) : isBroken ? (
@@ -174,10 +202,10 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
                     ) : (
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                     )}
-                    <span className="truncate text-neutral-300 font-medium">{p.title}</span>
+                    <span className="truncate text-neutral-200 font-medium">{p.title}</span>
                   </div>
                   <span
-                    className={`font-mono text-[11px] font-bold shrink-0 ${
+                    className={`font-mono text-xs sm:text-sm font-bold shrink-0 ${
                       isDone ? 'text-emerald-400' : isBroken ? 'text-rose-400' : 'text-amber-400'
                     }`}
                   >
@@ -190,23 +218,23 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
         </div>
 
         {/* Factions Final Standing */}
-        <div className="bg-neutral-950/70 border border-neutral-800 rounded-2xl p-5 space-y-3">
-          <h3 className="text-xs uppercase font-bold tracking-widest text-neutral-400 flex items-center gap-2">
+        <div className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5 space-y-3.5 shadow-inner">
+          <h3 className="text-xs sm:text-sm uppercase font-bold tracking-wider text-neutral-300 flex items-center gap-2">
             <Landmark className="w-4 h-4 text-sky-400" />
             Final Institutional Alignments
           </h3>
 
-          <div className="grid grid-cols-5 gap-2 text-center text-xs">
+          <div className="grid grid-cols-5 gap-2.5 text-center">
             {Object.values(factions).map((fac) => (
-              <div key={fac.id} className="bg-neutral-900 p-2.5 rounded-lg border border-neutral-800">
-                <span className="text-[10px] uppercase text-neutral-400 block truncate">{fac.name}</span>
+              <div key={fac.id} className="bg-neutral-900 p-3 rounded-xl border border-neutral-800">
+                <span className="text-xs uppercase font-bold text-neutral-400 block truncate">{fac.name}</span>
                 <span
-                  className={`font-mono font-bold text-sm block mt-1 ${
+                  className={`font-mono font-black text-base sm:text-lg block mt-1 ${
                     fac.value < 30
                       ? 'text-rose-400'
                       : fac.value >= 60
                       ? 'text-emerald-400'
-                      : 'text-neutral-200'
+                      : 'text-neutral-100'
                   }`}
                 >
                   {fac.value}%
@@ -218,28 +246,28 @@ export const ElectionEndingScreen: React.FC<ElectionEndingScreenProps> = ({
 
         {/* Primary Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-neutral-800">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={handleShare}
-              className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors active:scale-95"
             >
               <Share2 className="w-4 h-4 text-sky-400" />
-              {copied ? 'Gazette Copied!' : 'Share Mandate'}
+              {copied ? 'Gazette Copied!' : 'Quick Share Text'}
             </button>
             <button
               onClick={onViewArchive}
-              className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold text-xs flex items-center gap-1.5 transition-colors"
+              className="px-4 py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-xs sm:text-sm flex items-center gap-2 transition-colors active:scale-95"
             >
               <BookOpen className="w-4 h-4 text-emerald-400" />
-              View Archive
+              View Archives
             </button>
           </div>
 
           <button
             onClick={onPlayAgain}
-            className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-sm flex items-center gap-2 shadow-xl transition-all"
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-neutral-950 font-black text-sm sm:text-base flex items-center gap-2 shadow-xl transition-all active:scale-95"
           >
-            <RotateCcw className="w-4 h-4 stroke-[3]" />
+            <RotateCcw className="w-5 h-5 stroke-[3]" />
             Swear In New Presidency
           </button>
         </div>
