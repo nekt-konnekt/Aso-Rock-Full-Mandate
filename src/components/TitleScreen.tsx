@@ -115,16 +115,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           )}
         </div>
       </main>
-
-      {/* Footer Info */}
-      <footer className="relative z-10 border-t border-neutral-800 bg-neutral-950 px-4 py-3 text-sm text-neutral-400">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <span className="font-medium">Aso Rock: Full Mandate • Presidential Strategy Simulator</span>
-          <span className="font-mono text-xs text-neutral-400">
-            Current Mandate: {gameState.presidentName} ({gameState.partyName})
-          </span>
-        </div>
-      </footer>
     </div>
   );
 };
